@@ -11,17 +11,39 @@ variable "key_name" {
   description = "Desired name of AWS key pair"
 }
 
-variable "aws_region" {
-  description = "AWS region to launch servers."
-  default     = "us-west-2"
+variable "var.aws_access_key" {
+  description = "AWS Access Key"
 }
 
-# Ubuntu Precise 12.04 LTS (x64)
+variable "var.aws_secret_key" {
+  description = "AWS Secret Key"
+}
+
+variable "aws_region" {
+  description = "AWS region to launch servers."
+  default     = "eu-west-1"
+}
+
+variable "var.aws.vpc.cidr" {
+  description = "CIDR for the VPC"
+  default     = "10.255.0.0/16"
+}
+
+variable "aws_subnet1" {
+  description = "Subnet1 net"
+  default     = "10.255.0.0/24"
+
+}
+
+variable "aws_subnet2" {
+  description = "Subnet2 net"
+  default     = "10.255.1.0/24"
+
+}
+
+#  Ubuntu, 16.04 LTS (x64)
 variable "aws_amis" {
   default = {
-    eu-west-1 = "ami-674cbc1e"
-    us-east-1 = "ami-1d4e7a66"
-    us-west-1 = "ami-969ab1f6"
-    us-west-2 = "ami-8803e0f0"
+    eu-west-1 = "ami-785db401"
   }
 }
