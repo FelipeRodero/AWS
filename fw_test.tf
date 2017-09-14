@@ -1,37 +1,69 @@
 # Specify the provider and access details
 provider "aws" {
   region = "${var.aws_region}"
+  access_key = "${var.aws_access_key}"
+  secret_key = "${var.aws_secret_key}"
+
 }
 
 # Create a VPC to launch our instances into
-resource "aws_vpc" "default" {
-  cidr_block = "10.0.0.0/16"
+resource "aws_vpc" "FW_PoC" {
+  cidr_block = "${var.aws.vpc.cidr.default.id}"
+
+  tags {
+    Name = "FW_PoC_VPC"
+    }
 }
 
 # Create an internet gateway to give our subnet access to the outside world
-resource "aws_internet_gateway" "default" {
-  vpc_id = "${aws_vpc.default.id}"
+resource "aws_internet_gateway" "INET_GW" {
+  vpc_id = "${aws_vpc.FW_PoC.id}"
 }
 
 # Grant the VPC internet access on its main route table
 resource "aws_route" "internet_access" {
-  route_table_id         = "${aws_vpc.default.main_route_table_id}"
+  route_table_id         = "${aws_vpc.FW_PoC.main_route_table_id}"
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = "${aws_internet_gateway.default.id}"
+  gateway_id             = "${aws_internet_gateway.INET_GW.id}"
 }
 
 # Create a subnet to launch our instances into
-resource "aws_subnet" "default" {
-  vpc_id                  = "${aws_vpc.default.id}"
-  cidr_block              = "10.0.1.0/24"
+resource "aws_subnet" "Internal" {
+  vpc_id                  = "${aws_vpc.FW_PoC.id}"
+  cidr_block              = "${aws_subnet1.default.id}"
   map_public_ip_on_launch = true
+
+  tags {
+    Name = "Internal_Subnet"
+    }
+}
+
+# Create a subnet to launch our instances into
+resource "aws_subnet" "External" {
+  vpc_id                  = "${aws_vpc.FW_PoC.id}"
+  cidr_block              = "${aws_subnet2.default.id}"
+  map_public_ip_on_launch = true
+
+  tags {
+    Name = "External_Subnet"
+    }
+}
+
+resource "aws_route_table_association" "a" {
+  subnet_id      = "${aws_subnet.Internal.id}"
+  route_table_id = "${aws_route_table.internet_access.id}"
+}
+
+resource "aws_route_table_association" "b" {
+  subnet_id      = "${aws_subnet.External.id}"
+  route_table_id = "${aws_route_table.internet_access.id}"
 }
 
 # A security group for the ELB so it is accessible via the web
 resource "aws_security_group" "elb" {
   name        = "terraform_example_elb"
   description = "Used in the terraform"
-  vpc_id      = "${aws_vpc.default.id}"
+  vpc_id      = "${aws_vpc.FW_PoC.id}"
 
   # HTTP access from anywhere
   ingress {
@@ -55,7 +87,7 @@ resource "aws_security_group" "elb" {
 resource "aws_security_group" "default" {
   name        = "terraform_example"
   description = "Used in the terraform"
-  vpc_id      = "${aws_vpc.default.id}"
+  vpc_id      = "${aws_vpc.FW_PoC.id}"
 
   # SSH access from anywhere
   ingress {
@@ -83,9 +115,9 @@ resource "aws_security_group" "default" {
 }
 
 resource "aws_elb" "web" {
-  name = "terraform-example-elb"
+  name = "Internet-ELB-HTTP"
 
-  subnets         = ["${aws_subnet.default.id}"]
+  subnets         = ["${aws_subnet.Internal.id}"]
   security_groups = ["${aws_security_group.elb.id}"]
   instances       = ["${aws_instance.web.id}"]
 
@@ -127,7 +159,7 @@ resource "aws_instance" "web" {
   # We're going to launch into the same subnet as our ELB. In a production
   # environment it's more common to have a separate private subnet for
   # backend instances.
-  subnet_id = "${aws_subnet.default.id}"
+  subnet_id = "${aws_subnet.Internal.id}"
 
   # We run a remote provisioner on the instance after creating it.
   # In this case, we just install nginx and start it. By default,
